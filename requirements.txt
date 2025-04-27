@@ -1,0 +1,7 @@
+flask
+flask-login
+torch
+transformers
+sentence-transformers
+google-generativeai
+python-dotenv
