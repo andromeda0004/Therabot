@@ -1,20 +1,54 @@
 # Therabot Setup and Running Instructions
 
 ## Prerequisites
-- Python 3.9 or higher
-- pip (Python package installer)
+- Python 3.9 or higher (Python 3.12 recommended)
+- pip or pip3 (Python package installer)
+- Git (for cloning the repository)
 
-## Setup Instructions
+## Setup Instructions for New Users
 
-### 1. Install Dependencies
+### 1. Clone the Repository
 ```
+# Clone the repository to your local machine
+git clone https://github.com/yourusername/Therabot.git
+cd Therabot
+```
+
+### 2. Create and Activate a Virtual Environment (Recommended)
+```
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+```
+# Using pip (most systems)
 pip install -r requirements.txt
+
+# Using pip3.12 specifically
+pip3.12 install -r requirements.txt
+
+# For Mac users
+python3 -m pip install -r requirements.txt
 ```
 
-### 2. Initialize the Database
+### 4. Set up Environment Variables
+Create a `.env` file in the root directory with your API keys:
 ```
+GEMINI_API_KEY=your_api_key_here
+```
+
+### 5. Initialize the Database
+```
+# Using Flask command
 flask init-db
 
+# Alternative direct method
 # Windows
 python -m app.db
 
@@ -22,10 +56,12 @@ python -m app.db
 python3 -m app.db
 ```
 
-### 3. Run the Application
+### 6. Run the Application
 ```
-python -m flask run 
+# Using Flask command
+flask run
 
+# Alternative direct method
 # Windows
 python main.py
 
@@ -33,7 +69,7 @@ python main.py
 python3 main.py
 ```
 
-### 4. Access the Application
+### 7. Access the Application
 Open a web browser and navigate to:
 ```
 http://127.0.0.1:5000
@@ -71,7 +107,12 @@ http://127.0.0.1:5000
 
 - **Models Not Loading**: Ensure you have sufficient RAM and that all dependencies were installed correctly.
 - **Database Issues**: If encountering database errors, try reinitializing the database.
-- **Audio Not Working**: Check that your browser allows audio playback and that the rain.mp3 file exists in the app/static/audio directory.
+- **Audio Not Working**: 
+  - Check that your browser allows audio playback
+  - Verify that the rain.mp3 file exists in the app/static/audio directory
+  - Make sure your browser's autoplay settings allow audio to play
+  - Try clicking the audio control button manually if automatic playback fails
+  - Check browser console for specific errors related to audio playback
 
 ## File Structure Overview
 

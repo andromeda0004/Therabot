@@ -7,6 +7,12 @@ import datetime
 # Path for our SQLite database file - Use Flask's instance folder
 DATABASE = 'therabot.db'  # Just the filename, Flask will use instance_path
 
+# --- Define login_manager at the module level ---
+login_manager = LoginManager()
+login_manager.login_view = 'main.login'  # Correct login view endpoint
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
+
 def create_app():
     # No instance_relative_config needed for purely local setup
     app = Flask(__name__, instance_relative_config=True)
@@ -28,10 +34,7 @@ def create_app():
     # Removed loading from instance/config.py
 
     # --- Extensions ---
-    login_manager = LoginManager()
-    login_manager.login_view = 'main.login' # Correct login view endpoint
-    login_manager.login_message = "Please log in to access this page."
-    login_manager.login_message_category = "info"
+    # Initialize login_manager with the app
     login_manager.init_app(app)
 
     # --- Database ---

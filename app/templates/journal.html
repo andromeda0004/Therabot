@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Your Journal - Therabot{% endblock %}
+
+{% block content %}
+<div class="content-container journal-container">
+    <h2>Your Private Journal</h2>
+    <div class="journal-intro">
+        <p>Record your thoughts, feelings, and experiences. Your entries are private and only visible to you.</p>
+    </div>
+    
+    <div class="journal-layout">
+        <div class="journal-sidebar">
+            <div class="journal-calendar">
+                <div class="calendar-header">
+                    <button id="prev-month" class="calendar-nav-btn">&lt;</button>
+                    <h3 id="calendar-month-year">Month Year</h3>
+                    <button id="next-month" class="calendar-nav-btn">&gt;</button>
+                </div>
+                <div class="calendar-weekdays">
+                    <div>Sun</div>
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                </div>
+                <div id="calendar-days" class="calendar-days">
+                    <!-- Calendar days will be filled by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="journal-entries-list">
+                <h4>Your Entries</h4>
+                <div id="entries-list">
+                    <div class="entry-loading">Loading your entries...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="journal-editor">
+            <div class="journal-toolbar">
+                <div id="journal-date">Select a date to start</div>
+                <div class="mood-selector">
+                    <span>Mood:</span>
+                    <div class="mood-buttons">
+                        <button type="button" class="mood-btn" data-mood="happy" title="Happy">😊</button>
+                        <button type="button" class="mood-btn" data-mood="angry" title="Angry">😡</button>
+                        <button type="button" class="mood-btn" data-mood="sad" title="Sad">😞</button>
+                        <button type="button" class="mood-btn" data-mood="worried" title="Worried">😟</button>
+                        <button type="button" class="mood-btn" data-mood="neutral" title="Neutral">😐</button>
+                    </div>
+                </div>
+                <div class="editor-actions">
+                    <button id="save-entry" class="btn btn-primary" disabled>Save</button>
+                    <button id="delete-entry" class="btn btn-secondary" disabled>Delete</button>
+                </div>
+            </div>
+            <div id="editor-message" class="editor-message" style="display: none;"></div>
+            <textarea id="journal-content" placeholder="Write your thoughts here..." disabled></textarea>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,301 +1,343 @@
-from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session, g,
-    jsonify, current_app
-)
-from flask_login import login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from .db import get_db 
-from .models import User 
 import os
 import json
-from dotenv import load_dotenv  # Added import
-
-# Load environment variables from .env file
-load_dotenv()  # Added call
-
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-try:
-    from emotion_chatbot import (
-        detect_emotion, load_models, load_knowledge_base,
-        retrieve_context, build_prompt_user_part, generate_response 
-    )
-    try:
-        print("Attempting to load models...")
-        embedder, generator = load_models()
-        knowledge_data = load_knowledge_base()
-        corpus = [entry["text"] for entry in knowledge_data] if knowledge_data else []
-        if corpus and embedder:
-             print(f"Encoding {len(corpus)} corpus entries...")
-             corpus_embeddings = embedder.encode(corpus, convert_to_tensor=True)
-             print("Corpus encoded.")
-        else:
-             corpus_embeddings = None
-        MODELS_LOADED = True
-        print("Models and knowledge base processed.")
-    except Exception as e:
-        print(f"ERROR: Failed to load AI models or knowledge base: {e}")
-        embedder, generator, knowledge_data, corpus, corpus_embeddings = None, None, [], [], None
-        MODELS_LOADED = False
-
-except ImportError as e:
-    print(f"ERROR: Could not import emotion_chatbot functions: {e}")
-    MODELS_LOADED = False
-    embedder, generator, knowledge_data, corpus, corpus_embeddings = None, None, [], [], None
-    def build_prompt_user_part(*args): return "Error: Prompt function not loaded."
-    def generate_response(*args): return "Error: Generator function not loaded."
-    def detect_emotion(*args): return "neutral"
-    def retrieve_context(*args): return []
-
-
-# --- Chat History Database Functions ---
-
-def save_chat_message(user_id, sender, message, emotion=None):
-    """Saves a chat message to the database."""
-    db = get_db()
-    try:
-        db.execute(
-            "INSERT INTO chat_history (user_id, sender, message, emotion) VALUES (?, ?, ?, ?)",
-            (user_id, sender, message, emotion)
-        )
-        db.commit()
-    except Exception as e:
-        print(f"Error saving chat message: {e}")
-        db.rollback()  # Rollback in case of error
-
-def get_chat_history(user_id, limit=50):
-    """Retrieves chat history for a user from the database."""
-    db = get_db()
-    history_cursor = db.execute(
-        "SELECT sender, message, emotion, timestamp FROM chat_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
-        (user_id, limit)
-    )
-    history = history_cursor.fetchall()
-    # Convert Row objects to dictionaries and reverse order to show oldest first
-    return [dict(row) for row in reversed(history)]
-
-# --- End Chat History Database Functions ---
-
-
-# Define distress keywords (customize as needed)
-DISTRESS_KEYWORDS = [
-    "kill myself", "suicide", "end my life", "want to die",
-    "hopeless", "can't go on", "no reason to live", "overwhelmed",
-    "hurting myself", "self-harm"
-]
-
-# Suicide Hotline Information (expanded for global coverage)
-SUICIDE_HOTLINE_MESSAGE = (
-    "I understand you're going through immense pain right now. Please know that you're not alone and help is available.\n\n"
-    "US/Canada: Call or text 988 (National Suicide Prevention Lifeline)\n"
-    "UK: Call 111 or 116 123 (Samaritans)\n"
-    "India: Emergency: 112\n"
-    "      Suicide Hotline: 8888817666\n"
-    "      Prana Lifeline: 1800 121 203040 (Call), +91-8489512307 (Chat)\n"
-    "      Vandrevala Foundation: 9999-666-555 (Call), +1256662142 (Chat)\n"
-    "\nThese services provide 24/7 free and confidential support for depression, anxiety, suicidal thoughts and other crises. "
-    "Please reach out for help - you matter and people care about you."
+import datetime
+from flask import (
+    Blueprint, flash, g, redirect, render_template, request,
+    session, url_for, jsonify, current_app
 )
+from werkzeug.security import check_password_hash, generate_password_hash
+from app.db import get_db
+from app.models import User
+from flask_login import login_user, logout_user, login_required, current_user
+from app import login_manager
+from datetime import datetime
+# Import the chatbot from emotion_chatbot.py
+from emotion_chatbot import chatbot_respond
 
-# Function to check for distress keywords
-def check_for_distress(message):
-    message_lower = message.lower()
-    for keyword in DISTRESS_KEYWORDS:
-        if keyword in message_lower:
-            return True
-    return False
-
-# Function to check for rain sound request
-def check_for_rain_request(message):
-    message_lower = message.lower()
-    # Simple check, can be made more robust
-    if "play rain" in message_lower or "rain sound" in message_lower:
-        return True
-    return False
-
-
+# Change bp to main to match what __init__.py expects
 main = Blueprint('main', __name__)
-
 
 @main.route('/')
 def index():
-    """Serves the main landing page."""
-    return render_template('landing.html')
+    current_year = datetime.now().year
+    return render_template('landing.html', current_year=current_year)
 
+@main.route('/chat', methods=('GET', 'POST'))
+@login_required
+def chat():
+    db = get_db()
+    user_id = current_user.id
+    username = current_user.username
+    
+    if request.method == 'POST':
+        # For AJAX requests that send JSON
+        if request.is_json:
+            data = request.get_json()
+            message = data.get('message', '').strip()
+            user_mood = data.get('mood', None)  # Get the user's mood if provided
+            hidden = data.get('hidden', False)  # Check if this is a hidden message (for mood updates)
+            
+            if not message:
+                return jsonify({
+                    'error': 'Message is required.'
+                }), 400
+            
+            # Only save user message to chat history if it's not hidden
+            if not hidden:
+                db.execute(
+                    'INSERT INTO chat_history (user_id, sender, message) VALUES (?, ?, ?)',
+                    (user_id, 'user', message)
+                )
+                db.commit()  # Add commit here to prevent database locks
+            
+            # Get bot response with mood context if provided
+            if user_mood:
+                bot_reply, detected_emotion, should_play_rain = chatbot_respond(message, user_id=user_id, user_mood=user_mood, username=username)
+            else:
+                bot_reply, detected_emotion, should_play_rain = chatbot_respond(message, user_id=user_id, username=username)
+            
+            # Only save bot response to chat history if it's not hidden
+            if not hidden:
+                db.execute(
+                    'INSERT INTO chat_history (user_id, sender, message, emotion) VALUES (?, ?, ?, ?)',
+                    (user_id, 'bot', bot_reply, detected_emotion)
+                )
+                db.commit()
+            
+            # Return JSON response for AJAX
+            return jsonify({
+                'bot_reply': bot_reply,
+                'emotion': detected_emotion if user_mood is None else user_mood,
+                'play_rain': should_play_rain  # Changed from should_play_rain to match frontend's expected parameter
+            })
+        
+        # For regular form submissions
+        else:
+            message = request.form['message'].strip()
+            if not message:
+                flash('Message is required.', 'danger')
+                return redirect(url_for('main.chat'))
+            
+            # Save user message to chat history
+            db.execute(
+                'INSERT INTO chat_history (user_id, sender, message) VALUES (?, ?, ?)',
+                (user_id, 'user', message)
+            )
+            db.commit()  # Add commit here to prevent database locks
+            
+            # Get bot response
+            bot_reply, detected_emotion, should_play_rain = chatbot_respond(message, user_id=user_id, username=username)
+            
+            # Save bot response to chat history
+            db.execute(
+                'INSERT INTO chat_history (user_id, sender, message, emotion) VALUES (?, ?, ?, ?)',
+                (user_id, 'bot', bot_reply, detected_emotion)
+            )
+            db.commit()
+            
+            return redirect(url_for('main.chat'))
+    
+    # --- GET Request Handling ---
+    # Check if we need to show the mood modal
+    show_modal = session.pop('show_mood_modal', False)
+    
+    # Fetch chat history for this user
+    chat_history = db.execute(
+        'SELECT * FROM chat_history WHERE user_id = ? ORDER BY timestamp',
+        (user_id,)
+    ).fetchall()
+    
+    # Create a list of dictionaries for easier template rendering
+    chat_messages = []
+    for msg in chat_history:
+        chat_messages.append({
+            'sender': msg['sender'],
+            'message': msg['message'],
+            'emotion': msg['emotion'],
+            'timestamp': msg['timestamp']
+        })
+    
+    # If there are no messages yet, generate an initial greeting
+    if not chat_messages:
+        greeting = f"Hello {username}! 👋 I'm Therabot, your mental health assistant. How are you feeling today? 😊"
+        db.execute(
+            'INSERT INTO chat_history (user_id, sender, message, emotion) VALUES (?, ?, ?, ?)',
+            (user_id, 'bot', greeting, 'neutral')
+        )
+        db.commit()
+        
+        chat_messages.append({
+            'sender': 'bot',
+            'message': greeting,
+            'emotion': 'neutral',
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    current_year = datetime.now().year
+    # Pass the show_modal flag to the template
+    return render_template('chat.html', chat_history=chat_messages, current_year=current_year, show_modal=show_modal)
 
-@main.route('/login', methods=['GET', 'POST'])
+@main.route('/login', methods=('GET', 'POST'))
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.chat')) 
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        error = None
-
-        if not username or not password:
-             error = 'Username and password are required.'
-        else:
-            db = get_db()
-            user_data = db.execute(
-                'SELECT * FROM users WHERE username = ?', (username,)
-            ).fetchone()
-
-            if user_data is None:
-                error = 'Incorrect username.'
-            elif not check_password_hash(user_data['password'], password):
-                error = 'Incorrect password.'
-
-        if error is None:
-            user_obj = User(user_data['id'], user_data['username'], user_data['password'])
-            login_user(user_obj, remember=request.form.get('remember') == 'on') 
-            flash('Login successful!', 'success')
-            next_page = request.args.get('next') 
-            return redirect(next_page or url_for('main.chat'))
-        else:
-            flash(error, 'danger') 
-
-    return render_template('login.html', signup=False)
-
-@main.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.chat'))
-
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        error = None
+        username = request.form['username']
+        password = request.form['password']
         db = get_db()
+        error = None
+        
+        user = db.execute(
+            'SELECT * FROM users WHERE username = ?', (username,)
+        ).fetchone()
+        
+        if user is None:
+            error = 'Incorrect username.'
+        elif not check_password_hash(user['password'], password):
+            error = 'Incorrect password.'
+        
+        if error is None:
+            # Login successful
+            user_obj = User(user['id'], user['username'])
+            login_user(user_obj)
+            # Set flag to show mood modal on next chat page load
+            session['show_mood_modal'] = True 
+            return redirect(url_for('main.index'))
+        
+        flash(error, 'danger')
+    
+    current_year = datetime.now().year
+    return render_template('login.html', current_year=current_year)
 
+@main.route('/signup', methods=('GET', 'POST'))
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        db = get_db()
+        error = None
+        
         if not username:
             error = 'Username is required.'
         elif not password:
             error = 'Password is required.'
-        elif db.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone() is not None:
-            error = f"Username '{username}' is already taken."
-
+        elif db.execute(
+            'SELECT id FROM users WHERE username = ?', (username,)
+        ).fetchone() is not None:
+            error = f"User {username} is already registered."
+        
         if error is None:
-            try:
-                db.execute(
-                    'INSERT INTO users (username, password) VALUES (?, ?)',
-                    (username, generate_password_hash(password, method='pbkdf2:sha256', salt_length=16))
-                )
-                db.commit()
-                flash('Account created successfully! Please log in.', 'success')
-                return redirect(url_for('main.login'))
-            except db.IntegrityError: 
-                error = f"Username '{username}' is already taken."
-            except Exception as e:
-                error = f"An error occurred creating the account: {e}"
-                db.rollback() 
+            db.execute(
+                'INSERT INTO users (username, password) VALUES (?, ?)',
+                (username, generate_password_hash(password))
+            )
+            db.commit()
+            
+            # Auto-login the user after signup
+            user = db.execute(
+                'SELECT * FROM users WHERE username = ?', (username,)
+            ).fetchone()
+            user_obj = User(user['id'], user['username'])
+            login_user(user_obj)
+            # Set flag to show mood modal on next chat page load
+            session['show_mood_modal'] = True
+            
+            return redirect(url_for('main.index'))
+        
         flash(error, 'danger')
-
-    return render_template('login.html', signup=True)
+    
+    current_year = datetime.now().year
+    return render_template('login.html', signup=True, current_year=current_year)
 
 @main.route('/logout')
-@login_required 
+@login_required
 def logout():
+    # Clear the mood modal flag on logout
+    session.pop('show_mood_modal', None)
     logout_user()
-    flash("You have been logged out.", "info")
     return redirect(url_for('main.index'))
-
 
 @main.route('/faq')
 def faq():
-    """Serves the FAQ page."""
-    return render_template('faq.html')
+    current_year = datetime.now().year
+    return render_template('faq.html', current_year=current_year)
 
 @main.route('/resources')
 def resources():
-    """Serves the Resources page."""
-    return render_template('resources.html')
+    current_year = datetime.now().year
+    return render_template('resources.html', current_year=current_year)
 
-@main.route('/chat', methods=['GET', 'POST'])
-@login_required 
-def chat():
-    if not MODELS_LOADED or generator is None:
-        if request.is_json:
-            return jsonify({"error": "Chat functionality unavailable"}), 503
-        else:
-            flash("Chat functionality is currently unavailable.", "warning")
-            return redirect(url_for('main.faq'))
+# Journal Routes
+@main.route('/journal')
+@login_required
+def journal():
+    current_year = datetime.now().year
+    today = datetime.now().strftime('%Y-%m-%d')
+    return render_template('journal.html', current_year=current_year, today=today)
 
-    current_history = get_chat_history(current_user.id)
-    if not current_history and request.method == 'GET': # Only add greeting on initial GET
-        initial_greeting = f"Hello {current_user.username}, welcome! How are you feeling today?"
-        save_chat_message(current_user.id, 'bot', initial_greeting, 'neutral')
-        current_history = get_chat_history(current_user.id) # Reload history
+@main.route('/journal/entries')
+@login_required
+def get_journal_entries():
+    db = get_db()
+    user_id = current_user.id
+    
+    entries = db.execute(
+        '''
+        SELECT id, entry_date as date, mood, content, 
+               SUBSTR(content, 1, 100) || CASE WHEN LENGTH(content) > 100 THEN "..." ELSE "" END as preview
+        FROM journal_entries 
+        WHERE user_id = ? 
+        ORDER BY entry_date DESC
+        ''',
+        (user_id,)
+    ).fetchall()
+    
+    # Convert to list of dictionaries
+    entries_list = []
+    for entry in entries:
+        entries_list.append({
+            'id': entry['id'],
+            'date': entry['date'],
+            'mood': entry['mood'],
+            'preview': entry['preview']
+        })
+    
+    return jsonify(entries_list)
 
-    if request.method == 'POST':
-        if not request.is_json:
-            return jsonify({"error": "Invalid request format, JSON expected."}), 400
-
-        data = request.get_json()
-        user_message = data.get('message', '').strip()
-        mood = data.get('mood', 'neutral')  # New: Default to neutral
-        stress_level = data.get('stressLevel', 5)  # New: Default to 5/10
-        language = data.get('language', 'en')  # New: Default to English
-
-        if not user_message:
-            return jsonify({"error": "Empty message received."}), 400
-
-        if user_message.lower() in ['exit', 'quit']:
-            return jsonify({"bot_reply": "Chat session ended.", "emotion": "neutral", "action": "end_chat"})
-
-        try:
-            # --- Distress Check ---
-            is_distress = check_for_distress(user_message)
-            play_rain = check_for_rain_request(user_message)
-
-            # Save user message to DB with mood/stress context
-            save_chat_message(current_user.id, 'user', user_message, emotion=mood)
-
-            # Process message with mood/stress/language context
-            emotion = detect_emotion(user_message)  # Can combine with user-provided mood
-            contexts = retrieve_context(user_message, emotion, corpus, corpus_embeddings, embedder, knowledge_data, k=1)
-            
-            # Modified: Include mood/stress/language in prompt
-            prompt_user_part = f"""
-            [User Mood: {mood}, Stress Level: {stress_level}/10, Language: {language}]
-            {build_prompt_user_part(user_message, emotion, contexts)}
-            """
-            
-            bot_reply = generate_response(prompt_user_part, generator, current_user.username)
-            bot_emotion = emotion if emotion != 'neutral' else mood  # Prefer detected emotion
-
-            # --- Append Hotline Message if Distress Detected ---
-            if is_distress:
-                bot_reply += f"\n\n{SUICIDE_HOTLINE_MESSAGE}"
-                bot_emotion = "concerned"
-
-            # Handle language translation if needed (optional)
-            """if language != 'en':
-                try:
-                    from google.cloud import translate_v2 as translate
-                    translator = translate.Client()
-                    bot_reply = translator.translate(bot_reply, target_language=language)['translatedText']
-                except Exception as e:
-                    current_app.logger.warning(f"Translation failed: {e}")
-                    bot_reply += "\n\n(Translation unavailable - showing English response)"""
-
-            # Save bot reply to DB
-            save_chat_message(current_user.id, 'bot', bot_reply, bot_emotion)
-
-            response_data = {
-                "bot_reply": bot_reply,
-                "emotion": bot_emotion,
-                "play_rain": play_rain,
-                "language": language  # Echo back language for frontend
-            }
-            return jsonify(response_data)
-
-        except Exception as e:
-            current_app.logger.error(f"Error during chat processing: {e}")
+@main.route('/journal/entry/<date>', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def journal_entry(date):
+    db = get_db()
+    user_id = current_user.id
+    
+    # Validate date format (YYYY-MM-DD)
+    try:
+        datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    
+    if request.method == 'GET':
+        # Get an existing entry or return an empty one
+        entry = db.execute(
+            'SELECT id, entry_date, mood, content FROM journal_entries WHERE user_id = ? AND entry_date = ?',
+            (user_id, date)
+        ).fetchone()
+        
+        if entry:
             return jsonify({
-                "error": "Sorry, I encountered an issue processing your message.",
-                "details": str(e) if current_app.debug else None
-            }), 500
-
-    return render_template('chat.html',
-                         chat_history=current_history,
-                         username=current_user.username)
+                'id': entry['id'],
+                'date': entry['entry_date'],
+                'mood': entry['mood'],
+                'content': entry['content'],
+                'is_new': False
+            })
+        else:
+            return jsonify({
+                'date': date,
+                'mood': None,
+                'content': '',
+                'is_new': True
+            })
+    
+    elif request.method == 'POST':
+        # Create or update an entry
+        content = request.json.get('content', '').strip()
+        mood = request.json.get('mood')
+        
+        if not content:
+            return jsonify({'error': 'Content is required'}), 400
+        
+        # Check if entry exists
+        existing = db.execute(
+            'SELECT id FROM journal_entries WHERE user_id = ? AND entry_date = ?',
+            (user_id, date)
+        ).fetchone()
+        
+        if existing:
+            # Update existing entry
+            db.execute(
+                'UPDATE journal_entries SET content = ?, mood = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (content, mood, existing['id'])
+            )
+            message = 'Journal entry updated successfully'
+        else:
+            # Create new entry
+            db.execute(
+                'INSERT INTO journal_entries (user_id, entry_date, mood, content) VALUES (?, ?, ?, ?)',
+                (user_id, date, mood, content)
+            )
+            message = 'Journal entry created successfully'
+        
+        db.commit()
+        return jsonify({'message': message, 'success': True})
+    
+    elif request.method == 'DELETE':
+        # Delete an entry
+        result = db.execute(
+            'DELETE FROM journal_entries WHERE user_id = ? AND entry_date = ?',
+            (user_id, date)
+        )
+        db.commit()
+        
+        if result.rowcount > 0:
+            return jsonify({'message': 'Journal entry deleted successfully', 'success': True})
+        else:
+            return jsonify({'error': 'Entry not found'}), 404
