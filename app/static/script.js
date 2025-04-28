@@ -21,7 +21,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sender === 'bot' && !isPlaceholder && emotion && emotion !== 'neutral' && emotion !== 'error') {
             const emotionSpan = document.createElement('span');
             emotionSpan.classList.add('emotion-tag');
-            emotionSpan.textContent = ` (${emotion})`;
+
+            // Add emoji based on emotion type
+            let emoji = '';
+            switch (emotion.toLowerCase()) {
+                case 'happy':
+                    emoji = '😊';
+                    break;
+                case 'sad':
+                    emoji = '😢';
+                    break;
+                case 'angry':
+                    emoji = '😡';
+                    break;
+                case 'surprised':
+                    emoji = '😲';
+                    break;
+                case 'neutral':
+                    emoji = '😐';
+                    break;
+                default:
+                    emoji = '🤔'; // Default if emotion is not recognized
+            }
+
+            emotionSpan.textContent = ` ${emoji} (${emotion})`; // Include emoji with emotion
             innerP.appendChild(emotionSpan);
         }
 
@@ -69,12 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 link.classList.add('active');
             }
         }
-    });
-
-    // --- Simple Placeholder Animation on Resource Cards ---
-    const resourceCards = document.querySelectorAll('.resource-card');
-    resourceCards.forEach((card, index) => {
-        card.style.animation = `resourceFadeIn 0.6s ease-out ${index * 0.1}s forwards`;
     });
 
     // --- Theme Toggle ---
@@ -145,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
             stopRainSound();
         }
     }
-    // --------------------------
 
     // Add listener for the rain toggle button
     if (rainToggleButton) {
@@ -178,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatInput.focus();
                 return; // Stop processing this message further
             }
-            // ------------------------------------
 
             // Add user message
             addMessageToChat('user', userMessage, chatHistoryContainer);
@@ -187,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Add placeholder for bot response
             let placeholderMessageElement = addMessageToChat('bot', '...', chatHistoryContainer, null, true);
+
 
             try {
                 const response = await fetch(chatForm.action, {
@@ -289,18 +305,157 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    const moodSelector = document.createElement('select');
+    moodSelector.id = 'mood-selector';
+    moodSelector.innerHTML = `
+        <option value="neutral">😐 Neutral</option>
+        <option value="happy">😊 Happy</option>
+        <option value="sad">😢 Sad</option>
+        <option value="anxious">😰 Anxious</option>
+        <option value="angry">😠 Angry</option>
+    `;
+
+    // Get saved mood from localStorage
+    const savedMood = localStorage.getItem('userMood');
+    
+    if (savedMood) {
+        // If mood exists, set it and disable selector
+        moodSelector.value = savedMood;
+        moodSelector.disabled = true;
+    } else {
+        // If no saved mood, add listener to save first selection
+        moodSelector.addEventListener('change', () => {
+            localStorage.setItem('userMood', moodSelector.value);
+            moodSelector.disabled = true;
+        });
+    }
+
+    const stressSlider = document.createElement('input');
+    stressSlider.type = 'range';
+    stressSlider.id = 'stress-slider';
+    stressSlider.min = '1';
+    stressSlider.max = '10';
+    stressSlider.value = '5';
+
+    const moodStressContainer = document.createElement('div');
+    moodStressContainer.id = 'mood-stress-container';
+    moodStressContainer.innerHTML = '<span>Mood:</span>';
+    moodStressContainer.appendChild(moodSelector);
+    moodStressContainer.innerHTML += '<span>Stress:</span>';
+    moodStressContainer.appendChild(stressSlider);
+
+    // Insert mood/stress UI before chat input
+    if (chatForm) chatForm.insertBefore(moodStressContainer, chatForm.querySelector('input[type="text"]'));
+
+    // --- Language Selector (Add to DOM) ---
+    // const languageSelector = document.createElement('select');
+    // languageSelector.id = 'language-selector';
+    // languageSelector.innerHTML = `
+    //     <option value="en">English</option>
+    //     <option value="es">Español</option>
+    //     <option value="hi">हिन्दी</option>
+    //     <option value="fr">Français</option>
+    // `;
+
+    const langContainer = document.createElement('div');
+    langContainer.id = 'lang-container';
+    langContainer.innerHTML = '<span>Language:</span>';
+    langContainer.appendChild(languageSelector);
+
+    // Insert language selector in header or near chat
+    const header = document.querySelector('header');
+    if (header) header.appendChild(langContainer);
+
+    // --- Voice Input/Output ---
+    const micButton = document.createElement('button');
+    micButton.id = 'mic-button';
+    micButton.innerHTML = '🎤';
+    micButton.title = "Voice Input";
+
+    // Insert mic button near chat input
+    if (chatForm) chatForm.insertBefore(micButton, chatForm.querySelector('button[type="submit"]'));
+
+    // Voice Recognition
+    micButton.addEventListener('click', () => {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = languageSelector.value; // Use selected language
+        recognition.start();
+
+        recognition.onresult = (event) => {
+            const spokenText = event.results[0][0].transcript;
+            document.getElementById('chat-input').value = spokenText;
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Voice recognition error:', event.error);
+        };
+    });
+
+    // Text-to-Speech (for bot responses)
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = languageSelector.value;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // --- Modified AJAX Chat Submission ---
+    if (chatForm && chatInput && chatHistoryContainer) {
+        chatForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const userMessage = chatInput.value.trim();
+            if (!userMessage) return;
+
+            // --- Mood/Stress Data ---
+            const mood = moodSelector.value;
+            const stressLevel = stressSlider.value;
+            const language = languageSelector.value;
+
+            // Add user message to chat
+            addMessageToChat('user', userMessage, chatHistoryContainer);
+            chatInput.value = '';
+
+            // Add bot placeholder
+            const placeholder = addMessageToChat('bot', '...', chatHistoryContainer, null, true);
+
+            try {
+                const response = await fetch(chatForm.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: userMessage,
+                        mood: mood,
+                        stressLevel: stressLevel,
+                        language: language 
+                    }),
+                });
+
+                const data = await response.json();
+
+                // Update placeholder with bot response
+                placeholder.classList.remove('placeholder');
+                placeholder.querySelector('p:last-child').innerHTML = data.bot_reply.replace(/\n/g, '<br>');
+
+                // Add emotion tag if available
+                if (data.emotion) {
+                    const emotionSpan = document.createElement('span');
+                    emotionSpan.classList.add('emotion-tag');
+                    emotionSpan.textContent = ` (${data.emotion})`;
+                    placeholder.querySelector('strong').after(emotionSpan);
+                }
+
+                // Speak the bot's response
+                if (data.bot_reply) speak(data.bot_reply);
+
+                // Handle rain sound (existing functionality)
+                if (data.play_rain) playRainSound();
+
+            } catch (error) {
+                console.error('Error:', error);
+                placeholder.querySelector('p:last-child').textContent = 'Sorry, an error occurred.';
+            }
+        });
+    }
 
 }); // End DOMContentLoaded
-
-// --- Add Keyframe for Resource Card Animation ---
-const styleSheet = document.styleSheets[0];
-try {
-    styleSheet.insertRule(`
-        @keyframes resourceFadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    `, styleSheet.cssRules.length);
-} catch (e) {
-    console.warn("Could not insert resourceFadeIn keyframe dynamically: ", e);
-}
