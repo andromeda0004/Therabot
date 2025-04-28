@@ -211,7 +211,7 @@ def resources():
     return render_template('resources.html')
 
 @main.route('/chat', methods=['GET', 'POST'])
-@login_required
+@login_required 
 def chat():
     if not MODELS_LOADED or generator is None:
         if request.is_json:
@@ -232,6 +232,9 @@ def chat():
 
         data = request.get_json()
         user_message = data.get('message', '').strip()
+        mood = data.get('mood', 'neutral')  # New: Default to neutral
+        stress_level = data.get('stressLevel', 5)  # New: Default to 5/10
+        language = data.get('language', 'en')  # New: Default to English
 
         if not user_message:
             return jsonify({"error": "Empty message received."}), 400
@@ -244,20 +247,36 @@ def chat():
             is_distress = check_for_distress(user_message)
             play_rain = check_for_rain_request(user_message)
 
-            # Save user message to DB (using existing function)
-            save_chat_message(current_user.id, 'user', user_message)
+            # Save user message to DB with mood/stress context
+            save_chat_message(current_user.id, 'user', user_message, emotion=mood)
 
-            # Process message and get bot reply
-            emotion = detect_emotion(user_message)
+            # Process message with mood/stress/language context
+            emotion = detect_emotion(user_message)  # Can combine with user-provided mood
             contexts = retrieve_context(user_message, emotion, corpus, corpus_embeddings, embedder, knowledge_data, k=1)
-            prompt_user_part = build_prompt_user_part(user_message, emotion, contexts)
+            
+            # Modified: Include mood/stress/language in prompt
+            prompt_user_part = f"""
+            [User Mood: {mood}, Stress Level: {stress_level}/10, Language: {language}]
+            {build_prompt_user_part(user_message, emotion, contexts)}
+            """
+            
             bot_reply = generate_response(prompt_user_part, generator, current_user.username)
-            bot_emotion = emotion # Use detected emotion for bot response context, or refine later
+            bot_emotion = emotion if emotion != 'neutral' else mood  # Prefer detected emotion
 
             # --- Append Hotline Message if Distress Detected ---
             if is_distress:
                 bot_reply += f"\n\n{SUICIDE_HOTLINE_MESSAGE}"
-                bot_emotion = "concerned" # Override emotion
+                bot_emotion = "concerned"
+
+            # Handle language translation if needed (optional)
+            """if language != 'en':
+                try:
+                    from google.cloud import translate_v2 as translate
+                    translator = translate.Client()
+                    bot_reply = translator.translate(bot_reply, target_language=language)['translatedText']
+                except Exception as e:
+                    current_app.logger.warning(f"Translation failed: {e}")
+                    bot_reply += "\n\n(Translation unavailable - showing English response)"""
 
             # Save bot reply to DB
             save_chat_message(current_user.id, 'bot', bot_reply, bot_emotion)
@@ -265,14 +284,18 @@ def chat():
             response_data = {
                 "bot_reply": bot_reply,
                 "emotion": bot_emotion,
-                "play_rain": play_rain # Add flag for rain sound
+                "play_rain": play_rain,
+                "language": language  # Echo back language for frontend
             }
             return jsonify(response_data)
 
         except Exception as e:
-            current_app.logger.error(f"Error during AJAX chat processing: {e}") # Use current_app logger
-            return jsonify({"error": "Sorry, I encountered an issue processing your message."}), 500
+            current_app.logger.error(f"Error during chat processing: {e}")
+            return jsonify({
+                "error": "Sorry, I encountered an issue processing your message.",
+                "details": str(e) if current_app.debug else None
+            }), 500
 
     return render_template('chat.html',
-                           chat_history=current_history,
-                           username=current_user.username)
+                         chat_history=current_history,
+                         username=current_user.username)

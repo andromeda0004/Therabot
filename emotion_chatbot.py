@@ -3,13 +3,12 @@ import os
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from sentence_transformers import SentenceTransformer, util
-import google.generativeai as genai  # Added import
-from dotenv import load_dotenv  # Added import
+import google.generativeai as genai
+from dotenv import load_dotenv
 
-# Global variable for the Gemini model
+# Global variables
 gemini_model = None
-THERABOT_SYSTEM_PROMPT = ""  # Keep this global for the prompt structure
-
+THERABOT_SYSTEM_PROMPT = ""
 
 def detect_emotion(text: str) -> str:
     try:
@@ -28,7 +27,6 @@ def detect_emotion(text: str) -> str:
         print(f"Error in emotion detection: {e}")
         return fallback_emotion_detection(text)
 
-
 def fallback_emotion_detection(text: str) -> str:
     keywords = {
         "happy": ["happy", "joy", "excited", "great", "excellent", "good"],
@@ -43,40 +41,92 @@ def fallback_emotion_detection(text: str) -> str:
             return emotion
     return "neutral"
 
+def analyze_mood_and_stress(text: str) -> tuple[str, str]:
+    text_lower = text.lower()
+    positive_words = ["happy", "joyful", "good", "great", "relaxed", "content"]
+    negative_words = ["sad", "angry", "bad", "upset", "miserable", "frustrated"]
+    stress_words_high = ["overwhelmed", "stressed", "panic", "anxious", "nervous"]
+    stress_words_moderate = ["concerned", "worried", "tense", "pressured"]
+
+    mood = "neutral"
+    stress = "low"
+
+    if any(word in text_lower for word in positive_words):
+        mood = "positive"
+    elif any(word in text_lower for word in negative_words):
+        mood = "negative"
+
+    if any(word in text_lower for word in stress_words_high):
+        stress = "high"
+    elif any(word in text_lower for word in stress_words_moderate):
+        stress = "moderate"
+
+    print(f"Analyzed mood: {mood}, stress level: {stress}")
+    return mood, stress
 
 def load_models():
-    load_dotenv()  # Load environment variables from .env file
-    global gemini_model  # Use global model variable
+    load_dotenv()
+    global gemini_model
     try:
         print("Loading models...")
         embedder = SentenceTransformer("paraphrase-MiniLM-L3-v2")
-
-        # Configure Gemini API
         google_api_key = os.getenv("GOOGLE_API_KEY")
         if not google_api_key:
             print("ERROR: GOOGLE_API_KEY environment variable not set.")
             exit(1)
         genai.configure(api_key=google_api_key)
-
-        # Initialize Gemini model
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')  # Assign to global variable
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
         global THERABOT_SYSTEM_PROMPT
         THERABOT_SYSTEM_PROMPT = (
-            "You are Therabot, a dedicated mental health assistant. Your primary function is to provide empathetic "
-            "support, guidance, and a listening ear regarding emotional and mental wellbeing. "
-            "Analyze the user's input for emotional context and respond genuinely and supportively. "
-            "When appropriate, especially when discussing feelings or if the user asks for help, provide thoughtful explanations or suggest potential coping strategies or perspectives. Aim for helpful and considerate responses.\n\n"
-            # --- Added instruction about username ---
-            "The user you are speaking with is named {username}. Address them by their name occasionally, where it feels natural and supportive (e.g., 'That sounds tough, {username}.', or 'How does that make you feel, {username}?'). Do not overuse the name.\n\n"
-            # --- Guideline (Keep as is) ---
-            "GUIDELINE: While your focus is mental health, you can briefly acknowledge related context if helpful. "
-            "However, if the user's input shifts significantly away from personal feelings, emotions, or wellbeing "
-            "(e.g., asking for detailed information on unrelated topics like history, science, coding, recipes, politics), "
-            "gently steer the conversation back or politely state that the topic is outside your scope of expertise as a mental health assistant. "
-            "Avoid abrupt refusals for slightly related questions, but maintain your core focus. Example refusal: 'My expertise is in mental wellbeing, so I can't help with that specific topic. How are you feeling today?'\n\n"
-            # --- End Guideline ---
-            "Your knowledge is centered on mental health. Prioritize empathetic listening and support."
+            "You are Therabot, a warm and empathetic mental health assistant 🤗.\n"
+            "YOUR MISSION:\n"
+            "- Always use 2-4 fitting emojis naturally in your replies (like 😊🌟💙🫂)\n"
+            "Given a user's emotion or mental health issue, suggest 2-4 trustworthy mental health resources.\n"
+            "Format:"  
+            "👉 [Resource Name🔗](https://example.com)\n"
+            "Guidelines:"
+            "- Use real mental health websites (no ads or fake links)\n"
+            "- Only output clickable links\n"
+            "- No extra commentary\n"
+
+            "Example:\n"
+            "👉 [BetterHelp🔗](https://www.betterhelp.com)\n"  
+            "👉 [Mind🔗](https://www.mind.org.uk)\n"
+            "- Greet and support users by their name ({username}) warmly at least once.\n"
+            "- Match emotional tone, validate feelings, and offer emotional support.\n"
+            "- Analyze mood and stress level if given and adjust empathy accordingly.\n\n"
+            "EMOTIONS AND HOW TO RESPOND:\n"
+            "- Happy 😊: Celebrate ('That's wonderful, {username}! 🎉🌈')\n"
+            "- Sad 😢: Comfort ('I'm here for you, {username} 💙🫂')\n"
+            "- Angry 😠: Help calm ('Let's breathe through it together, {username} 🌬️💖')\n"
+            "- Worried 😟: Reassure ('You're not alone, {username} 🤝💙')\n"
+            "- Neutral 😐: Gently engage ('Tell me more, {username} 💬')\n\n"
+            "IMPORTANT:\n"
+            "- Stay supportive, mental health-focused only.\n"
+            "- Steer back if off-topic.\n\n"
+            "RESOURCES (use appropriately):\n"
+            "meditation, breathing exercises, crisis helplines, and mental health resources:\n"
+            "- [Meditation🧘‍♂️](https://www.headspace.com)\n"
+            "- [Mindfulness Apps📱](https://www.meditationapps.com)\n" 
+            
+            "- [Breathing Exercises🌬️](https://www.healthline.com/health/breathing-exercise)\n"
+            "- [Crisis Helplines🆘](https://findahelpline.com)\n\n"
+
+            "COMMON LIFE STRESSORS:\n"
+            "- Career & Work: burnout, job search, workplace stress\n"
+            "👉 [Career Support🔗](https://www.indeed.com/career-advice)\n"
+            "👉 [Workplace Stress Tips🔗](https://www.verywellmind.com/workplace-stress-management-4157175)\n"
+            "- Family & Relationships: conflict, parenting, divorce\n"
+            "👉 [Family Counseling🔗](https://www.goodtherapy.org/learn-about-therapy/modes/family-therapy)\n"
+            "👉 [Parenting Resources🔗](https://www.healthychildren.org)\n"
+            "- Financial Stress: money management, debt, budgeting\n"
+            "👉 [Financial Wellness🔗](https://www.nerdwallet.com/article/finance/how-to-budget)\n"
+            "- Life Changes: moving, loss, transitions\n"
+            "👉 [Coping with Change🔗](https://www.psychologytoday.com/us/basics/coping)\n\n"
+            "FORMAT:\n"
+            "- Write concise, warm responses (~1-3 sentences).\n"
+            "- Use emojis and links naturally.\n"
         )
         print("Models loaded successfully (Embedder + Gemini configured)")
         return embedder, gemini_model
@@ -84,18 +134,17 @@ def load_models():
         print(f"Error loading models or configuring Gemini: {e}")
         exit(1)
 
-
 def load_knowledge_base():
     try:
         kb_path = "knowledge_base.json"
         if not os.path.exists(kb_path):
             print("Knowledge base not found. Creating a simple one...")
             sample_kb = [
-                {"emotion": "happy", "text": "It's great to hear you're feeling positive!"},
-                {"emotion": "sad", "text": "I'm sorry you're feeling down. Remember that it's okay to feel sad, and I'm here to listen."},
-                {"emotion": "angry", "text": "Feeling angry is understandable sometimes. What's causing this frustration for you?"},
-                {"emotion": "neutral", "text": "I see. Tell me more about what's on your mind."},
-                {"emotion": "worried", "text": "It sounds like you're dealing with some worry. Let's talk through it."}
+                {"emotion": "happy", "text": "It's great to hear you're feeling positive! 🌟"},
+                {"emotion": "sad", "text": "I'm sorry you're feeling down. Remember, it's okay to feel sad. 🫂"},
+                {"emotion": "angry", "text": "Feeling angry is normal sometimes. Let's work through it together. 🌪️"},
+                {"emotion": "neutral", "text": "I see. Tell me more about what's on your mind. 💬"},
+                {"emotion": "worried", "text": "It sounds like you're dealing with some worry. Let's talk through it. 🤝"}
             ]
             with open(kb_path, "w") as f:
                 json.dump(sample_kb, f, indent=4)
@@ -106,8 +155,7 @@ def load_knowledge_base():
         return knowledge_data
     except Exception as e:
         print(f"Error loading knowledge base: {e}")
-        return [{"emotion": "neutral", "text": "I'm here to help."}]
-
+        return [{"emotion": "neutral", "text": "I'm here to help. 🫂"}]
 
 def retrieve_context(user_input, emotion, corpus, corpus_embeddings, embedder, knowledge_data, k=1):
     try:
@@ -115,7 +163,7 @@ def retrieve_context(user_input, emotion, corpus, corpus_embeddings, embedder, k
         relevant_corpus = emotion_texts or corpus
 
         if not relevant_corpus:
-            return ["I'm here for you. Let's talk."]
+            return ["I'm here for you. Let's talk. 🌟"]
 
         target_embeddings = (
             embedder.encode(relevant_corpus, convert_to_tensor=True)
@@ -128,7 +176,7 @@ def retrieve_context(user_input, emotion, corpus, corpus_embeddings, embedder, k
         actual_k = min(k, len(relevant_corpus))
 
         if actual_k == 0:
-            return ["How does that make you feel?"]
+            return ["How does that make you feel? 💬"]
 
         top_results = torch.topk(scores, k=actual_k)
         top_indices, top_scores = top_results[1][0], top_results[0][0]
@@ -136,36 +184,33 @@ def retrieve_context(user_input, emotion, corpus, corpus_embeddings, embedder, k
         score_threshold = 0.3
         contexts = [relevant_corpus[idx] for i, idx in enumerate(top_indices) if top_scores[i] >= score_threshold]
 
-        return contexts if contexts else ["Tell me more about that."]
+        return contexts if contexts else ["Tell me more about that. 🫂"]
     except Exception as e:
         print(f"Error retrieving context: {e}")
-        return ["I'm here to listen and help you with your concerns."]
-
+        return ["I'm here to listen and help you with your concerns. 🌼"]
 
 def build_prompt_user_part(user_input: str, emotion: str, context: list[str]) -> str:
+    mood, stress = analyze_mood_and_stress(user_input)
     context_str = "\n".join(f"- {c}" for c in context) if context else "No specific context retrieved."
     return (
         f"User Input: {user_input}\n"
         f"Detected Emotion: {emotion}\n"
+        f"Mood: {mood}\n"
+        f"Stress Level: {stress}\n"
         f"Potentially Relevant Info:\n{context_str}\n"
         f"Assistant Response:"
     )
 
-
-def generate_response(user_prompt_part: str, generator, username: str) -> str:  # Added username parameter
+def generate_response(user_prompt_part: str, generator, username: str) -> str:
     global gemini_model
     if generator is None:
         print("Error: Gemini model not initialized.")
-        return "Sorry, I encountered an issue. Please try again later."
+        return "Sorry, I encountered an issue. Please try again later. 🛠️"
 
     try:
-        # Format the system prompt with the actual username
         formatted_system_prompt = THERABOT_SYSTEM_PROMPT.format(username=username)
-
-        # Combine formatted system prompt and user part for Gemini
         full_prompt = f"{formatted_system_prompt}\n\n{user_prompt_part}"
 
-        # Use the passed generator (Gemini model instance)
         response = generator.generate_content(full_prompt)
 
         if not response.parts:
@@ -173,25 +218,21 @@ def generate_response(user_prompt_part: str, generator, username: str) -> str:  
             try:
                 if response.prompt_feedback.block_reason:
                     print(f"Content blocked due to: {response.prompt_feedback.block_reason}")
-                    return "I cannot respond to that request as it may violate safety guidelines."
+                    return "I cannot respond to that request as it may violate safety guidelines. 🚫"
             except Exception:
                 pass
-            return "I'm having trouble formulating a response right now. Could you try rephrasing?"
+            return "I'm having trouble formulating a response right now. Could you try rephrasing? 🌀"
 
         cleaned_response = response.text.strip()
-
-        # Remove system prompt repetition if present (use the formatted one)
         if formatted_system_prompt in cleaned_response:
             cleaned_response = cleaned_response.replace(formatted_system_prompt, "")
-
-        # Remove potential "Assistant Response:" prefix
         if "Assistant Response:" in cleaned_response:
             cleaned_response = cleaned_response.split("Assistant Response:")[-1].strip()
 
         if not cleaned_response:
-            return "I'm listening. Could you elaborate a bit?"
+            return "I'm listening. Could you elaborate a bit? 👂"
 
         return cleaned_response
     except Exception as e:
         print(f"Error generating response with Gemini: {e}")
-        return "I understand. Please know I'm here to listen, but I encountered an issue processing your request."
+        return "I'm here for you, even if I'm having technical issues. 🛠️💙"
