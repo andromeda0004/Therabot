@@ -636,6 +636,569 @@ body.dark-mode #volume-slider {
 }
 
 
+/* --- Journal Page --- */
+.journal-container { max-width: 1100px; margin: 30px auto; }
+.journal-intro { text-align: center; margin-bottom: 25px; color: var(--subtle-text); }
+body.dark-mode .journal-intro { color: var(--subtle-text); }
+
+.journal-layout {
+    display: flex;
+    gap: 30px;
+    height: calc(80vh - 200px);
+    min-height: 500px;
+}
+
+.journal-sidebar {
+    flex: 0 0 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    height: 100%;
+}
+
+.journal-calendar {
+    background-color: var(--container-bg);
+    border-radius: var(--border-radius);
+    padding: 15px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--input-border);
+}
+body.dark-mode .journal-calendar {
+    background-color: var(--container-bg);
+    border-color: var(--input-border);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.calendar-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--heading-color);
+}
+body.dark-mode .calendar-header h3 { color: var(--heading-color); }
+
+.calendar-nav-btn {
+    background: none;
+    border: 1px solid var(--input-border);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+.calendar-nav-btn:hover {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    border-color: var(--primary-color);
+}
+body.dark-mode .calendar-nav-btn {
+    border-color: var(--input-border);
+    color: var(--dark-text);
+}
+body.dark-mode .calendar-nav-btn:hover {
+    background-color: var(--primary-color);
+    color: #111;
+    border-color: var(--primary-color);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--heading-color);
+}
+body.dark-mode .calendar-weekdays { color: var(--heading-color); }
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    color: var(--dark-text);
+}
+body.dark-mode .calendar-day { color: var(--dark-text); }
+
+.calendar-day:hover {
+    background-color: rgba(91, 140, 255, 0.2);
+}
+
+.calendar-day.empty {
+    cursor: default;
+}
+.calendar-day.empty:hover {
+    background-color: transparent;
+}
+
+.calendar-day.today {
+    background-color: var(--accent-color);
+    color: var(--light-text);
+    font-weight: bold;
+}
+body.dark-mode .calendar-day.today {
+    background-color: var(--accent-color);
+    color: #111;
+}
+
+.calendar-day.selected {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+    font-weight: bold;
+}
+body.dark-mode .calendar-day.selected {
+    background-color: var(--primary-color);
+    color: #111;
+}
+
+.calendar-day.has-entry {
+    font-weight: bold;
+}
+.calendar-day.has-entry::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+}
+body.dark-mode .calendar-day.has-entry::after {
+    background-color: var(--primary-color);
+}
+
+.mood-marker {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    font-size: 0.6rem;
+}
+
+.journal-entries-list {
+    flex: 1;
+    background-color: var(--container-bg);
+    border-radius: var(--border-radius);
+    padding: 15px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--input-border);
+    overflow-y: auto;
+}
+body.dark-mode .journal-entries-list {
+    background-color: var(--container-bg);
+    border-color: var(--input-border);
+}
+
+.journal-entries-list h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--heading-color);
+    font-size: 1.1rem;
+}
+body.dark-mode .journal-entries-list h4 { color: var(--heading-color); }
+
+#entries-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.entry-loading {
+    color: var(--subtle-text);
+    font-style: italic;
+}
+body.dark-mode .entry-loading { color: var(--subtle-text); }
+
+.no-entries {
+    color: var(--subtle-text);
+    font-style: italic;
+    text-align: center;
+    padding: 15px 0;
+}
+body.dark-mode .no-entries { color: var(--subtle-text); }
+
+.entry-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--input-border);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.entry-item:last-child {
+    border-bottom: none;
+}
+.entry-item:hover {
+    background-color: rgba(91, 140, 255, 0.1);
+}
+body.dark-mode .entry-item {
+    border-color: var(--input-border);
+}
+body.dark-mode .entry-item:hover {
+    background-color: rgba(107, 162, 255, 0.1);
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.entry-date {
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+body.dark-mode .entry-date { color: var(--primary-color); }
+
+.entry-mood {
+    font-size: 1rem;
+}
+
+.entry-preview {
+    color: var(--subtle-text);
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+}
+body.dark-mode .entry-preview { color: var(--subtle-text); }
+
+.journal-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--container-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--input-border);
+    box-shadow: var(--shadow);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+body.dark-mode .journal-editor {
+    background-color: var(--container-bg);
+    border-color: var(--input-border);
+}
+
+.journal-toolbar {
+    padding: 15px;
+    border-bottom: 1px solid var(--input-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+body.dark-mode .journal-toolbar {
+    border-color: var(--input-border);
+}
+
+#journal-date {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--heading-color);
+    flex: 1;
+}
+body.dark-mode #journal-date { color: var(--heading-color); }
+
+.mood-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mood-selector span {
+    font-weight: 600;
+    color: var(--dark-text);
+}
+body.dark-mode .mood-selector span { color: var(--dark-text); }
+
+.mood-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.mood-btn {
+    background: none;
+    border: 1px solid var(--input-border);
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+}
+.mood-btn:hover {
+    background-color: rgba(91, 140, 255, 0.2);
+    transform: translateY(-2px);
+}
+.mood-btn.active {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+body.dark-mode .mood-btn {
+    border-color: var(--input-border);
+}
+body.dark-mode .mood-btn:hover {
+    background-color: rgba(107, 162, 255, 0.2);
+}
+body.dark-mode .mood-btn.active {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color);
+}
+
+.editor-actions {
+    display: flex;
+    gap: 10px;
+}
+
+#journal-content {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    resize: none;
+    font-family: var(--font-main);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--dark-text);
+    background-color: var(--container-bg);
+    transition: background-color 0.3s;
+    outline: none;
+}
+body.dark-mode #journal-content {
+    color: var(--dark-text);
+    background-color: var(--container-bg);
+}
+#journal-content:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.editor-message {
+    padding: 10px 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+.editor-message.success {
+    color: #155724;
+    background-color: #d4edda;
+}
+.editor-message.error {
+    color: #721c24;
+    background-color: #f8d7da;
+}
+.editor-message.info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+}
+body.dark-mode .editor-message.success {
+    color: #c3e6cb;
+    background-color: #1e4620;
+}
+body.dark-mode .editor-message.error {
+    color: #f5c6cb;
+    background-color: #721c24;
+}
+body.dark-mode .editor-message.info {
+    color: #bee5eb;
+    background-color: #0c5460;
+}
+
+/* Modal styles for mood selection */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow: auto;
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: var(--container-bg);
+    margin: 15% auto;
+    padding: 25px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    width: 90%;
+    max-width: 500px;
+    animation: slideInDown 0.4s;
+}
+body.dark-mode .modal-content {
+    background-color: var(--container-bg);
+    border: 1px solid var(--input-border);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--heading-color);
+}
+body.dark-mode .modal-header h3 { color: var(--heading-color); }
+
+.close-modal {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--dark-text);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.close-modal:hover {
+    color: var(--primary-color);
+}
+body.dark-mode .close-modal { color: var(--dark-text); }
+body.dark-mode .close-modal:hover { color: var(--primary-color); }
+
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-body p {
+    margin: 0 0 20px 0;
+    color: var(--dark-text);
+}
+body.dark-mode .modal-body p { color: var(--dark-text); }
+
+.mood-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.mood-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 10px;
+    border-radius: var(--border-radius);
+}
+.mood-option:hover {
+    background-color: rgba(91, 140, 255, 0.1);
+    transform: translateY(-3px);
+}
+.mood-option.selected {
+    background-color: rgba(91, 140, 255, 0.2);
+    transform: translateY(-3px);
+}
+body.dark-mode .mood-option:hover {
+    background-color: rgba(107, 162, 255, 0.1);
+}
+body.dark-mode .mood-option.selected {
+    background-color: rgba(107, 162, 255, 0.2);
+}
+
+.mood-emoji {
+    font-size: 2.5rem;
+    transition: transform 0.2s;
+}
+
+.mood-label {
+    font-weight: 600;
+    color: var(--dark-text);
+    font-size: 0.9rem;
+}
+body.dark-mode .mood-label { color: var(--dark-text); }
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments for Journal */
+@media (max-width: 900px) {
+    .journal-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .journal-sidebar {
+        flex: 1;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .journal-editor {
+        height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .journal-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .modal-content {
+        margin: 30% auto;
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .mood-selection {
+        gap: 10px;
+    }
+    
+    .mood-emoji {
+        font-size: 2rem;
+    }
+}
+
+
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
     header { flex-direction: column; padding: 15px; }
@@ -663,39 +1226,3 @@ body.dark-mode #volume-slider {
     .nav-username { margin-left: 5px; padding-left: 10px; font-size: 0.9rem; }
     .theme-toggle-btn { width: 45px; height: 45px; font-size: 1.3rem; bottom: 15px; right: 15px; }
     }
-/* General container for the mood and stress elements */
-/* Styling for the mood and stress container */
-#mood-stress-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-/* Mood selector styling */
-#mood-selector {
-    padding: 5px 10px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    background-color: #f9f9f9;
-    cursor: pointer;
-    width: auto; /* Keeps its natural size */
-}
-
-/* Stress slider styling */
-#stress-slider {
-    width: 150px; /* Adjust the width of the slider */
-    cursor: pointer;
-}
-
-/* Add some labels */
-#mood-stress-container span {
-    font-size: 14px;
-    color: #333;
-}
-
-/* Disabled mood selector (when mood is saved) */
-#mood-selector:disabled {
-    background-color: #e0e0e0;
-    cursor: not-allowed;
-}

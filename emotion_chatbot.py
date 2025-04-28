@@ -41,28 +41,25 @@ def fallback_emotion_detection(text: str) -> str:
             return emotion
     return "neutral"
 
-def analyze_mood_and_stress(text: str) -> tuple[str, str]:
-    text_lower = text.lower()
-    positive_words = ["happy", "joyful", "good", "great", "relaxed", "content"]
-    negative_words = ["sad", "angry", "bad", "upset", "miserable", "frustrated"]
-    stress_words_high = ["overwhelmed", "stressed", "panic", "anxious", "nervous"]
-    stress_words_moderate = ["concerned", "worried", "tense", "pressured"]
-
-    mood = "neutral"
-    stress = "low"
-
-    if any(word in text_lower for word in positive_words):
-        mood = "positive"
-    elif any(word in text_lower for word in negative_words):
-        mood = "negative"
-
-    if any(word in text_lower for word in stress_words_high):
-        stress = "high"
-    elif any(word in text_lower for word in stress_words_moderate):
-        stress = "moderate"
-
-    print(f"Analyzed mood: {mood}, stress level: {stress}")
-    return mood, stress
+def verify_api_connection():
+    """Verify connection to the Gemini API before starting the application"""
+    global gemini_model
+    if gemini_model is None:
+        print("Gemini model not initialized yet")
+        return False
+        
+    try:
+        # Simple test prompt to check connectivity
+        test_response = gemini_model.generate_content("Hello, testing connection.")
+        if test_response and test_response.parts:
+            print("✓ Gemini API connection successful")
+            return True
+        else:
+            print("✗ Gemini API connection test failed - empty response")
+            return False
+    except Exception as e:
+        print(f"✗ Gemini API connection test failed: {e}")
+        return False
 
 def load_models():
     load_dotenv()
@@ -75,60 +72,47 @@ def load_models():
             print("ERROR: GOOGLE_API_KEY environment variable not set.")
             exit(1)
         genai.configure(api_key=google_api_key)
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        print("Using Gemini 2.0 Flash model")
 
         global THERABOT_SYSTEM_PROMPT
         THERABOT_SYSTEM_PROMPT = (
-            "You are Therabot, a warm and empathetic mental health assistant 🤗.\n"
+            "You are Therabot, a deeply empathetic and supportive mental health assistant 🤗. Your primary role is to be a compassionate guide and listener for {username}. "
+            "It's truly admirable that you're taking this step to explore your feelings, {username}.\n\n"
             "YOUR MISSION:\n"
-            "- Always use 2-4 fitting emojis naturally in your replies (like 😊🌟💙🫂)\n"
-            "Given a user's emotion or mental health issue, suggest 2-4 trustworthy mental health resources.\n"
-            "Format:"  
-            "👉 [Resource Name🔗](https://example.com)\n"
-            "Guidelines:"
-            "- Use real mental health websites (no ads or fake links)\n"
-            "- Only output clickable links\n"
-            "- No extra commentary\n"
-
-            "Example:\n"
-            "👉 [BetterHelp🔗](https://www.betterhelp.com)\n"  
-            "👉 [Mind🔗](https://www.mind.org.uk)\n"
-            "- Greet and support users by their name ({username}) warmly at least once.\n"
-            "- Match emotional tone, validate feelings, and offer emotional support.\n"
-            "- Analyze mood and stress level if given and adjust empathy accordingly.\n\n"
-            "EMOTIONS AND HOW TO RESPOND:\n"
-            "- Happy 😊: Celebrate ('That's wonderful, {username}! 🎉🌈')\n"
-            "- Sad 😢: Comfort ('I'm here for you, {username} 💙🫂')\n"
-            "- Angry 😠: Help calm ('Let's breathe through it together, {username} 🌬️💖')\n"
-            "- Worried 😟: Reassure ('You're not alone, {username} 🤝💙')\n"
-            "- Neutral 😐: Gently engage ('Tell me more, {username} 💬')\n\n"
+            "- Engage with warmth and understanding, mirroring a therapeutic conversation.\n"
+            "- Use 2-4 fitting emojis naturally in your replies (like 😊🌟💙🫂).\n"
+            "- Validate {username}'s feelings and experiences with genuine empathy.\n"
+            "- Offer thoughtful reflections and gentle guidance related to emotional wellbeing.\n"
+            "- Provide slightly longer, more detailed responses (around 3-5 sentences) to offer comprehensive support.\n"
+            "- If {username} feels down or stressed, offer concrete coping strategies, like mindfulness techniques (e.g., deep breathing, 5-4-3-2-1 grounding), journaling prompts, or suggest seeking professional resources if appropriate.\n"
+            "- Always address {username} by name periodically to maintain a personal connection.\n\n"
+            "EMOTIONAL RESPONSES (Examples - Adapt Naturally):\n"
+            "- Happy 😊: \"That sounds wonderful, {username}! It's fantastic to hear you're feeling positive. What contributed to this feeling? 🎉🌈\"\n"
+            "- Sad 😢: \"I hear that you're feeling sad, {username}. It takes courage to share that. I'm here to listen without judgment. Would you like to talk more about what's weighing on you? 💙🫂\"\n"
+            "- Angry 😠: \"It's understandable to feel angry in that situation, {username}. Let's explore that feeling a bit. Sometimes, taking a few slow, deep breaths can help create some space. What's going through your mind? 🌬️💖\"\n"
+            "- Worried 😟: \"Worry can be really draining, {username}. Thank you for trusting me with this. Remember, you're not alone in feeling this way. Let's break down what's causing the worry. 🤝💙\"\n"
+            "- Neutral 😐: \"Thanks for sharing that, {username}. How are you feeling about that situation right now? I'm interested in hearing more about your perspective. 💬\"\n\n"
+            "HANDLING OFF-TOPIC QUESTIONS:\n"
+            "- If {username} asks about topics clearly outside of mental health, emotions, or personal wellbeing (e.g., politics, science, recipes, general facts), gently redirect. Instead of a harsh refusal, say something like: \"That's an interesting question, {username}. While I'm focused on supporting your emotional wellbeing, I'm wondering how you're feeling today? Is there anything on your mind you'd like to talk about regarding your feelings or experiences?\"\n\n"
             "IMPORTANT:\n"
-            "- Stay supportive, mental health-focused only.\n"
-            "- Steer back if off-topic.\n\n"
-            "RESOURCES (use appropriately):\n"
-            "meditation, breathing exercises, crisis helplines, and mental health resources:\n"
-            "- [Meditation🧘‍♂️](https://www.headspace.com)\n"
-            "- [Mindfulness Apps📱](https://www.meditationapps.com)\n" 
-            
-            "- [Breathing Exercises🌬️](https://www.healthline.com/health/breathing-exercise)\n"
-            "- [Crisis Helplines🆘](https://findahelpline.com)\n\n"
-
-            "COMMON LIFE STRESSORS:\n"
-            "- Career & Work: burnout, job search, workplace stress\n"
-            "👉 [Career Support🔗](https://www.indeed.com/career-advice)\n"
-            "👉 [Workplace Stress Tips🔗](https://www.verywellmind.com/workplace-stress-management-4157175)\n"
-            "- Family & Relationships: conflict, parenting, divorce\n"
-            "👉 [Family Counseling🔗](https://www.goodtherapy.org/learn-about-therapy/modes/family-therapy)\n"
-            "👉 [Parenting Resources🔗](https://www.healthychildren.org)\n"
-            "- Financial Stress: money management, debt, budgeting\n"
-            "👉 [Financial Wellness🔗](https://www.nerdwallet.com/article/finance/how-to-budget)\n"
-            "- Life Changes: moving, loss, transitions\n"
-            "👉 [Coping with Change🔗](https://www.psychologytoday.com/us/basics/coping)\n\n"
-            "FORMAT:\n"
-            "- Write concise, warm responses (~1-3 sentences).\n"
-            "- Use emojis and links naturally.\n"
+            "- Maintain a supportive, non-judgmental, and slightly admiring tone.\n"
+            "- Your focus is SOLELY on mental and emotional health support.\n"
+            "- Do not give medical diagnoses or replace professional therapy.\n"
+            "- Use provided resources appropriately when relevant.\n\n"
+            "RESOURCES (Suggest when appropriate):\n"
+            "- Mindfulness & Meditation: [Headspace🧘‍♂️](https://www.headspace.com), [Calm](https://www.calm.com)\n"
+            "- Breathing Exercises: [Healthline Breathing Guide🌬️](https://www.healthline.com/health/breathing-exercise)\n"
+            "- Crisis Support: [Find A Helpline🆘](https://findahelpline.com) (Mention this carefully if the user expresses severe distress)\n"
+            "- General Mental Health Info: [NIMH](https://www.nimh.nih.gov), [Mind UK](https://www.mind.org.uk)\n"
         )
         print("Models loaded successfully (Embedder + Gemini configured)")
+        
+        # Verify API connection
+        connection_success = verify_api_connection()
+        if not connection_success:
+            print("WARNING: Could not establish connection to Gemini API. Responses may be unreliable.")
+        
         return embedder, gemini_model
     except Exception as e:
         print(f"Error loading models or configuring Gemini: {e}")
@@ -190,13 +174,10 @@ def retrieve_context(user_input, emotion, corpus, corpus_embeddings, embedder, k
         return ["I'm here to listen and help you with your concerns. 🌼"]
 
 def build_prompt_user_part(user_input: str, emotion: str, context: list[str]) -> str:
-    mood, stress = analyze_mood_and_stress(user_input)
     context_str = "\n".join(f"- {c}" for c in context) if context else "No specific context retrieved."
     return (
         f"User Input: {user_input}\n"
         f"Detected Emotion: {emotion}\n"
-        f"Mood: {mood}\n"
-        f"Stress Level: {stress}\n"
         f"Potentially Relevant Info:\n{context_str}\n"
         f"Assistant Response:"
     )
@@ -211,7 +192,26 @@ def generate_response(user_prompt_part: str, generator, username: str) -> str:
         formatted_system_prompt = THERABOT_SYSTEM_PROMPT.format(username=username)
         full_prompt = f"{formatted_system_prompt}\n\n{user_prompt_part}"
 
-        response = generator.generate_content(full_prompt)
+        # Add retry logic for network issues
+        max_retries = 3
+        retry_count = 0
+        last_error = None
+        
+        while retry_count < max_retries:
+            try:
+                # Add timeout for API calls
+                response = generator.generate_content(full_prompt)
+                break  # If successful, exit retry loop
+            except Exception as e:
+                retry_count += 1
+                last_error = e
+                print(f"API call attempt {retry_count}/{max_retries} failed: {str(e)}")
+                if retry_count < max_retries:
+                    import time
+                    time.sleep(2)  # Wait before retrying
+                else:
+                    # All retries failed
+                    raise last_error
 
         if not response.parts:
             print("Warning: Gemini response has no parts.")
@@ -233,6 +233,78 @@ def generate_response(user_prompt_part: str, generator, username: str) -> str:
             return "I'm listening. Could you elaborate a bit? 👂"
 
         return cleaned_response
+    except ConnectionError as ce:
+        print(f"Connection error with Gemini API: {ce}")
+        return "I'm having trouble connecting to my services. Please check your internet connection and try again in a moment. 🌐💫"
+    except TimeoutError as te:
+        print(f"Timeout error with Gemini API: {te}")
+        return "It's taking longer than expected to process your request. Please try again shortly. ⏱️💙"
     except Exception as e:
         print(f"Error generating response with Gemini: {e}")
+        # Check for specific network-related errors
+        error_str = str(e).lower()
+        if any(term in error_str for term in ["network", "connection", "timeout", "connect", "socket"]):
+            return "I'm having trouble connecting to my AI services. Please check your internet connection and try again. 🌐🔄"
         return "I'm here for you, even if I'm having technical issues. 🛠️💙"
+
+def chatbot_respond(message, user_id=None, user_mood=None, username=None):
+    """
+    Main entry point for chatbot functionality.
+    
+    Args:
+        message (str): The user's message
+        user_id (int, optional): The user's ID for personalization
+        user_mood (str, optional): The user's selected mood if provided
+        username (str, optional): The user's name
+    
+    Returns:
+        tuple: (bot_response, detected_emotion, should_play_rain)
+    """
+    try:
+        # Initialize if not already done
+        global gemini_model
+        if gemini_model is None:
+            embedder, gemini_model = load_models()
+        else:
+            embedder = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+        
+        # Load the knowledge base
+        knowledge_data = load_knowledge_base()
+        
+        # Detect emotion or use provided mood
+        emotion = user_mood if user_mood else detect_emotion(message)
+        
+        # Get username (default if not provided)
+        if not username:
+            username = f"User_{user_id}" if user_id else "friend"
+        
+        # Check for explicit request to play rain sounds
+        rain_sound_request = any(phrase in message.lower() for phrase in ["play rain", "rain sound", "play some rain", "rain sounds", "play the rain"])
+        
+        # Retrieve relevant context
+        contexts = retrieve_context(
+            message, 
+            emotion, 
+            corpus=[entry["text"] for entry in knowledge_data],
+            corpus_embeddings=None, 
+            embedder=embedder, 
+            knowledge_data=knowledge_data
+        )
+        
+        # Build the prompt
+        user_prompt_part = build_prompt_user_part(message, emotion, contexts)
+        
+        # Generate response
+        response = generate_response(user_prompt_part, gemini_model, username)
+        
+        # Determine if we should play rain sound (for explicit requests or calming effect during stress)
+        should_play_rain = rain_sound_request or "worried" in emotion.lower() or "anxious" in message.lower() or "stressed" in message.lower()
+        
+        # Add explicit acknowledgment of rain sounds if requested
+        if rain_sound_request:
+            response += "\n\nI've started playing some rain sounds to help you relax. You can adjust the volume or stop it using the controls at the top. 🎵"
+        
+        return response, emotion, should_play_rain
+    except Exception as e:
+        print(f"Error in chatbot_respond: {e}")
+        return "I'm having some trouble right now, but I'm still here for you. 💙", "neutral", False

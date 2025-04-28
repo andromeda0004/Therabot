@@ -16,6 +16,9 @@
 
         <nav>
             <a href="{{ url_for('main.chat') }}" class="{{ 'active' if request.endpoint == 'main.chat' else '' }}">Chat</a>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.journal') }}" class="{{ 'active' if request.endpoint == 'main.journal' else '' }}">Journal</a>
+            {% endif %}
             <a href="{{ url_for('main.faq') }}" class="{{ 'active' if request.endpoint == 'main.faq' else '' }}">FAQ</a>
             <a href="{{ url_for('main.resources') }}" class="{{ 'active' if request.endpoint == 'main.resources' else '' }}">Resources</a>
 
