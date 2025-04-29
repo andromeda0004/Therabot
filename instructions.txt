@@ -84,8 +84,8 @@ http://127.0.0.1:5000
 3. **Chat with Therabot**: Once logged in, you'll be directed to the chat interface where you can talk with Therabot.
    
 4. **Special Commands**:
-   - Type "play rain" or mention "rain sound" to play calming rain sounds
-   - Type "stop music" to stop the rain sound
+   - Type "play peaceful" or mention "peaceful music" to play calming music
+   - Type "stop music" to stop the peaceful music
    - Use the volume slider to adjust the sound volume
    
 5. **Access Resources**: Navigate to the Resources section for helpful external resources.
@@ -97,8 +97,8 @@ http://127.0.0.1:5000
 ## Features
 
 - **Emotion Detection**: Therabot detects emotions in your messages and responds accordingly.
-- **Soothing Rain Sound**: Request rain sounds for relaxation during your chat.
-- **Volume Control**: Adjust the volume of the rain sounds with the slider.
+- **Peaceful Music**: Request peaceful music for relaxation during your chat.
+- **Volume Control**: Adjust the volume of the peaceful music with the slider.
 - **Crisis Resources**: Therabot provides crisis resources when distress is detected.
 - **Chat History**: Your conversation history is saved for continuity.
 - **Dark/Light Mode**: Toggle between dark and light themes using the theme button.

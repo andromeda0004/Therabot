@@ -10,6 +10,7 @@
             <label for="volume-slider" style="font-size: 0.9em; margin-right: 5px;">🔊</label>
             <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.5" style="width: 80px; cursor: pointer;">
             <button id="rain-toggle-button" class="btn btn-secondary btn-sm">Stop Rain</button>
+            <button id="music-toggle-button" class="btn btn-secondary btn-sm">Stop Music</button>
         </div>
     </div>
 
@@ -60,8 +61,10 @@
 </div>
 
 <!-- Rain Sound Audio -->
-<audio id="rain-audio" loop>
-    <source src="{{ url_for('static', filename='audio/rain.mp3') }}" type="audio/mpeg">
+
+<!-- Peaceful Music Audio -->
+<audio id="music-audio" loop>
+    <source src="{{ url_for('static', filename='audio/peaceful-music.mp3') }}" type="audio/mpeg">
     Your browser does not support the audio element.
 </audio>
 
@@ -108,7 +111,22 @@
 <input type="hidden" id="show-mood-modal" value="{{ 'true' if show_modal else 'false' }}">
 
 <script>
-    // This variable will be used by script.js to determine whether to show the mood modal
-    window.showMoodModalOnLoad = document.getElementById('show-mood-modal').value === 'true';
+    // Force the mood modal to appear - temporary fix
+    window.showMoodModalOnLoad = true;
+    
+    // Debug output to console
+    console.log("Modal should show: ", window.showMoodModalOnLoad);
+    console.log("Show modal value from server: ", "{{ 'true' if show_modal else 'false' }}");
+    
+    // Display the modal with a delay after page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const moodModal = document.getElementById('mood-modal');
+        if (moodModal) {
+            setTimeout(() => {
+                moodModal.style.display = 'block';
+                console.log("Modal should now be visible");
+            }, 500);
+        }
+    });
 </script>
 {% endblock %}

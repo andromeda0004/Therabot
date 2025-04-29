@@ -133,17 +133,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- AJAX Chat Form Submission ---
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
-    const rainAudio = document.getElementById('rain-audio'); // Get audio element
-    const rainToggleButton = document.getElementById('rain-toggle-button'); // Get toggle button
-    const audioControls = document.getElementById('audio-controls'); // Get audio controls container
-    const volumeSlider = document.getElementById('volume-slider'); // Get volume slider
+    const rainAudio = document.getElementById('rain-audio');
+    const musicAudio = document.getElementById('music-audio');
+    const rainToggleButton = document.getElementById('rain-toggle-button');
+    const musicToggleButton = document.getElementById('music-toggle-button');
+    const audioControls = document.getElementById('audio-controls');
+    const volumeSlider = document.getElementById('volume-slider');
 
-    // --- Rain Audio Functions ---
+    // --- Audio Functions ---
     function playRainSound() {
         if (rainAudio && audioControls) {
             // Set initial volume from slider if available
             if (volumeSlider) {
                 rainAudio.volume = volumeSlider.value;
+            }
+            
+            // Ensure music is stopped when rain is played
+            if (musicAudio && !musicAudio.paused) {
+                musicAudio.pause();
+                musicAudio.currentTime = 0;
             }
             
             // Add better error handling with user feedback
@@ -157,9 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             audioControls.style.display = 'flex'; // Show the audio controls container
+            
+            // Update button visibility
+            if (rainToggleButton) rainToggleButton.style.display = 'inline-block';
+            if (musicToggleButton) musicToggleButton.style.display = 'none';
         } else {
             // Handle missing audio element or controls
-            console.error("Rain audio element or controls not found");
+            console.error("Audio element or controls not found");
             const chatHistoryContainer = document.getElementById('chat-history');
             if (chatHistoryContainer) {
                 addMessageToChat('bot', "Sorry, I couldn't play the rain sounds. Audio player not initialized properly.", chatHistoryContainer, 'error');
@@ -171,8 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rainAudio) {
             rainAudio.pause();
             rainAudio.currentTime = 0; // Reset audio to start
-            if (audioControls) {
-                audioControls.style.display = 'none'; // Hide the audio controls container
+            if (audioControls && musicAudio && musicAudio.paused) {
+                audioControls.style.display = 'none'; // Hide the audio controls container only if no other audio is playing
             }
         }
     }
@@ -187,19 +199,87 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Peaceful Music Audio Functions ---
+    function playPeacefulMusic() {
+        if (musicAudio && audioControls) {
+            // Set initial volume from slider if available
+            if (volumeSlider) {
+                musicAudio.volume = volumeSlider.value;
+            }
+            
+            // Ensure rain is stopped when music is played
+            if (rainAudio && !rainAudio.paused) {
+                rainAudio.pause();
+                rainAudio.currentTime = 0;
+            }
+            
+            // Add better error handling with user feedback
+            musicAudio.play().catch(e => {
+                console.error("Error playing audio:", e);
+                // Show an error message to the user
+                const chatHistoryContainer = document.getElementById('chat-history');
+                if (chatHistoryContainer) {
+                    addMessageToChat('bot', "Sorry, I couldn't play the peaceful music. Please check that your browser allows audio playback.", chatHistoryContainer, 'error');
+                }
+            });
+            
+            audioControls.style.display = 'flex'; // Show the audio controls container
+            
+            // Update button visibility
+            if (musicToggleButton) musicToggleButton.style.display = 'inline-block';
+            if (rainToggleButton) rainToggleButton.style.display = 'none';
+        } else {
+            // Handle missing audio element or controls
+            console.error("Audio element or controls not found");
+            const chatHistoryContainer = document.getElementById('chat-history');
+            if (chatHistoryContainer) {
+                addMessageToChat('bot', "Sorry, I couldn't play the peaceful music. Audio player not initialized properly.", chatHistoryContainer, 'error');
+            }
+        }
+    }
+
+    function stopPeacefulMusic() {
+        if (musicAudio) {
+            musicAudio.pause();
+            musicAudio.currentTime = 0; // Reset audio to start
+            if (audioControls && rainAudio && rainAudio.paused) {
+                audioControls.style.display = 'none'; // Hide the audio controls container only if no other audio is playing
+            }
+        }
+    }
+
+    function togglePeacefulMusic() {
+        if (musicAudio) {
+            if (musicAudio.paused) {
+                playPeacefulMusic();
+            } else {
+                stopPeacefulMusic();
+            }
+        }
+    }
+
     // Add listener for the rain toggle button
     if (rainToggleButton) {
         rainToggleButton.addEventListener('click', toggleRainSound);
     }
 
+    // Add listener for the music toggle button
+    if (musicToggleButton) {
+        musicToggleButton.addEventListener('click', togglePeacefulMusic);
+    }
+
     // Add listener for the volume slider
-    if (volumeSlider && rainAudio) {
+    if (volumeSlider) {
         // Set initial audio volume based on slider's default value
-        rainAudio.volume = volumeSlider.value;
+        if (rainAudio) rainAudio.volume = volumeSlider.value;
+        if (musicAudio) musicAudio.volume = volumeSlider.value;
 
         volumeSlider.addEventListener('input', () => {
-            if (rainAudio) {
+            if (rainAudio && !rainAudio.paused) {
                 rainAudio.volume = volumeSlider.value;
+            }
+            if (musicAudio && !musicAudio.paused) {
+                musicAudio.volume = volumeSlider.value;
             }
         });
     }
@@ -213,16 +293,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // --- Check for "stop music" command ---
-            if (userMessage.toLowerCase().includes('stop music') || 
-                userMessage.toLowerCase().includes('stop rain') ||
-                userMessage.toLowerCase().includes('turn off music') ||
+            // --- Check for audio commands ---
+            // Check for rain commands
+            if (userMessage.toLowerCase().includes('play rain') || 
+                userMessage.toLowerCase().includes('start rain') ||
+                userMessage.toLowerCase().includes('rain sounds')) {
+                playRainSound();
+                // Add user message for feedback
+                addMessageToChat('user', userMessage, chatHistoryContainer);
+                // Add bot acknowledgment
+                addMessageToChat('bot', "I've started playing rain sounds for you.", chatHistoryContainer);
+                chatInput.value = ''; // Clear input
+                chatInput.focus();
+                return; // Stop processing this message further
+            }
+            
+            // Check for peaceful music commands
+            if (userMessage.toLowerCase().includes('play peaceful music') || 
+                userMessage.toLowerCase().includes('play music') ||
+                userMessage.toLowerCase().includes('peaceful music') ||
+                userMessage.toLowerCase().includes('start music')) {
+                playPeacefulMusic();
+                // Add user message for feedback
+                addMessageToChat('user', userMessage, chatHistoryContainer);
+                // Add bot acknowledgment
+                addMessageToChat('bot', "I've started playing peaceful music for you.", chatHistoryContainer);
+                chatInput.value = ''; // Clear input
+                chatInput.focus();
+                return; // Stop processing this message further
+            }
+            
+            // Check for stop commands
+            if (userMessage.toLowerCase().includes('stop rain') || 
                 userMessage.toLowerCase().includes('turn off rain')) {
                 stopRainSound();
                 // Add user message for feedback
                 addMessageToChat('user', userMessage, chatHistoryContainer);
                 // Add bot acknowledgment
                 addMessageToChat('bot', "I've turned off the rain sounds.", chatHistoryContainer);
+                chatInput.value = ''; // Clear input
+                chatInput.focus();
+                return; // Stop processing this message further
+            }
+            
+            // Check for stop music commands
+            if (userMessage.toLowerCase().includes('stop music') || 
+                userMessage.toLowerCase().includes('stop peaceful') ||
+                userMessage.toLowerCase().includes('turn off music') ||
+                userMessage.toLowerCase().includes('turn off peaceful')) {
+                stopPeacefulMusic();
+                // Add user message for feedback
+                addMessageToChat('user', userMessage, chatHistoryContainer);
+                // Add bot acknowledgment
+                addMessageToChat('bot', "I've turned off the peaceful music.", chatHistoryContainer);
                 chatInput.value = ''; // Clear input
                 chatInput.focus();
                 return; // Stop processing this message further
@@ -309,16 +432,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
-                        // --- Rain Audio Control ---
-                        if (responseData.play_rain) {
+                        // --- Audio Control Based on Response ---
+                        // Check if the bot reply mentions playing rain sounds
+                        if (responseData.bot_reply.toLowerCase().includes('play rain') ||
+                            responseData.bot_reply.toLowerCase().includes('started playing rain')) {
                             playRainSound();
                         }
-                        // --------------------------
-
+                        
+                        // Check if the bot reply mentions playing peaceful music
+                        if (responseData.bot_reply.toLowerCase().includes('play peaceful music') ||
+                            responseData.bot_reply.toLowerCase().includes('playing peaceful music') ||
+                            responseData.bot_reply.toLowerCase().includes('play music') ||
+                            responseData.play_music === true) {
+                            playPeacefulMusic();
+                        }
+                        
                         if (responseData.action === 'end_chat') {
                             chatInput.disabled = true;
                             chatInput.placeholder = "Chat ended. Refresh to start again.";
-                            stopRainSound(); // Stop rain sound if chat ends
+                            // Stop all audio if chat ends
+                            stopRainSound();
+                            stopPeacefulMusic();
                         }
                     }
                 } else {
@@ -327,11 +461,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (responseData.warning) addMessageToChat('bot', responseData.warning, chatHistoryContainer, 'warning');
                     else if (responseData.bot_reply) {
                         addMessageToChat('bot', responseData.bot_reply.replace(/\n/g, '<br>'), chatHistoryContainer, responseData.emotion);
-                        // --- Rain Audio Control (Fallback) ---
-                        if (responseData.play_rain) {
+                        
+                        // --- Audio Control Based on Response ---
+                        // Check if the bot reply mentions playing rain sounds
+                        if (responseData.bot_reply.toLowerCase().includes('play rain') ||
+                            responseData.bot_reply.toLowerCase().includes('started playing rain')) {
                             playRainSound();
                         }
-                        // --------------------------
+                        
+                        // Check if the bot reply mentions playing peaceful music
+                        if (responseData.bot_reply.toLowerCase().includes('play peaceful music') ||
+                            responseData.bot_reply.toLowerCase().includes('playing peaceful music') ||
+                            responseData.bot_reply.toLowerCase().includes('play music') ||
+                            responseData.play_music === true) {
+                            playPeacefulMusic();
+                        }
                     }
                 }
 
@@ -369,11 +513,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Voice Input Setup (if browser supports it) ---
-    const micButton = document.createElement('button');
-    micButton.type = 'button';
-    micButton.innerHTML = '🎤';
-    micButton.title = 'Use voice input';
-    micButton.style.cssText = 'background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0 10px;';
+    // const micButton = document.createElement('button');
+    // micButton.type = 'button';
+    // micButton.innerHTML = '🎤';
+    // micButton.title = 'Use voice input';
+    // micButton.style.cssText = 'background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0 10px;';
 
     // Check if browser supports speech recognition
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
@@ -799,6 +943,17 @@ document.addEventListener('DOMContentLoaded', () => {
             moodButtons.forEach(btn => btn.classList.remove('active'));
             selectedMoodForJournal = null;
 
+            // Get today's date for comparison (without time)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Convert the dateStr to a Date object for comparison
+            const entryDate = new Date(dateStr);
+            entryDate.setHours(0, 0, 0, 0);
+            
+            // Check if the entry date is in the past
+            const isPastEntry = entryDate < today;
+
             // Fetch the entry from the API
             fetch(`/journal/entry/${dateStr}`)
                 .then(response => response.json())
@@ -807,19 +962,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Populate the editor
                     journalContent.value = data.content;
-                    journalContent.disabled = false;
-                    saveEntryBtn.disabled = false;
+                    
+                    // If it's a past entry, make it read-only
+                    if (isPastEntry) {
+                        journalContent.disabled = true;
+                        saveEntryBtn.disabled = true;
+                        deleteEntryBtn.disabled = true;
+                        
+                        // Add a visual indicator that it's read-only
+                        journalContent.classList.add('read-only');
+                        showEditorMessage("Past entries are view-only", "info");
+                    } else {
+                        journalContent.disabled = false;
+                        saveEntryBtn.disabled = false;
+                        deleteEntryBtn.disabled = data.is_new;
+                        journalContent.classList.remove('read-only');
+                    }
 
-                    // Only enable delete button if this is an existing entry
-                    deleteEntryBtn.disabled = data.is_new;
-
-                    // Set the mood if available
+                    // Set the mood if available, but don't allow changes for past entries
                     if (data.mood) {
                         selectedMoodForJournal = data.mood;
                         const moodBtn = document.querySelector(`.mood-btn[data-mood="${data.mood}"]`);
                         if (moodBtn) {
                             moodBtn.classList.add('active');
                         }
+                    }
+                    
+                    // Disable mood buttons for past entries
+                    if (isPastEntry) {
+                        moodButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.classList.add('disabled');
+                        });
+                    } else {
+                        moodButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.classList.remove('disabled');
+                        });
                     }
                 })
                 .catch(error => {

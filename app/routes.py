@@ -68,7 +68,7 @@ def chat():
             return jsonify({
                 'bot_reply': bot_reply,
                 'emotion': detected_emotion if user_mood is None else user_mood,
-                'play_rain': should_play_rain  # Changed from should_play_rain to match frontend's expected parameter
+                'play_music': should_play_rain  # Changed from play_rain to play_music for consistency
             })
         
         # For regular form submissions

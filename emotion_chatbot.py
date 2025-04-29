@@ -278,8 +278,8 @@ def chatbot_respond(message, user_id=None, user_mood=None, username=None):
         if not username:
             username = f"User_{user_id}" if user_id else "friend"
         
-        # Check for explicit request to play rain sounds
-        rain_sound_request = any(phrase in message.lower() for phrase in ["play rain", "rain sound", "play some rain", "rain sounds", "play the rain"])
+        # Check for explicit request to play peaceful music
+        peaceful_music_request = any(phrase in message.lower() for phrase in ["play peaceful", "peaceful music", "play some peaceful", "peaceful sounds", "play the peaceful"])
         
         # Retrieve relevant context
         contexts = retrieve_context(
@@ -297,14 +297,14 @@ def chatbot_respond(message, user_id=None, user_mood=None, username=None):
         # Generate response
         response = generate_response(user_prompt_part, gemini_model, username)
         
-        # Determine if we should play rain sound (for explicit requests or calming effect during stress)
-        should_play_rain = rain_sound_request or "worried" in emotion.lower() or "anxious" in message.lower() or "stressed" in message.lower()
+        # Determine if we should play peaceful music (for explicit requests or calming effect during stress)
+        should_play_music = peaceful_music_request or "worried" in emotion.lower() or "anxious" in message.lower() or "stressed" in message.lower()
         
-        # Add explicit acknowledgment of rain sounds if requested
-        if rain_sound_request:
-            response += "\n\nI've started playing some rain sounds to help you relax. You can adjust the volume or stop it using the controls at the top. 🎵"
+        # Add explicit acknowledgment of peaceful music if requested
+        if peaceful_music_request:
+            response += "\n\nI've started playing some peaceful music to help you relax. You can adjust the volume or stop it using the controls at the top. 🎵"
         
-        return response, emotion, should_play_rain
+        return response, emotion, should_play_music
     except Exception as e:
         print(f"Error in chatbot_respond: {e}")
         return "I'm having some trouble right now, but I'm still here for you. 💙", "neutral", False

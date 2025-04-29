@@ -653,7 +653,8 @@ body.dark-mode .journal-intro { color: var(--subtle-text); }
     display: flex;
     flex-direction: column;
     gap: 25px;
-    height: 100%;
+    height: 100%; /* Ensure full height */
+    max-height: 100%;  /* Add this to avoid overflow */
 }
 
 .journal-calendar {
@@ -804,6 +805,7 @@ body.dark-mode .calendar-day.has-entry::after {
     box-shadow: var(--shadow);
     border: 1px solid var(--input-border);
     overflow-y: auto;
+    max-height: 100%;  /* Ensure it doesn't overflow */
 }
 body.dark-mode .journal-entries-list {
     background-color: var(--container-bg);
@@ -822,6 +824,8 @@ body.dark-mode .journal-entries-list h4 { color: var(--heading-color); }
     list-style: none;
     padding: 0;
     margin: 0;
+    overflow-y: auto;
+    max-height: calc(100% - 30px); /* Account for header */
 }
 
 .entry-loading {
@@ -896,6 +900,7 @@ body.dark-mode .entry-preview { color: var(--subtle-text); }
     border: 1px solid var(--input-border);
     box-shadow: var(--shadow);
     transition: border-color 0.3s, box-shadow 0.3s;
+    overflow: hidden; /* Add this to prevent content overflow */
 }
 body.dark-mode .journal-editor {
     background-color: var(--container-bg);
@@ -910,6 +915,7 @@ body.dark-mode .journal-editor {
     align-items: center;
     flex-wrap: wrap;
     gap: 15px;
+    background-color: var(--container-bg); /* Ensure consistent background */
 }
 body.dark-mode .journal-toolbar {
     border-color: var(--input-border);
@@ -974,6 +980,11 @@ body.dark-mode .mood-btn.active {
     background-color: var(--primary-color);
 }
 
+.mood-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .editor-actions {
     display: flex;
     gap: 10px;
@@ -991,6 +1002,8 @@ body.dark-mode .mood-btn.active {
     background-color: var(--container-bg);
     transition: background-color 0.3s;
     outline: none;
+    overflow-y: auto;
+    height: 100%;
 }
 body.dark-mode #journal-content {
     color: var(--dark-text);
@@ -1001,11 +1014,25 @@ body.dark-mode #journal-content {
     cursor: not-allowed;
 }
 
+.journal-content.read-only {
+    background-color: rgba(0, 0, 0, 0.02);
+    color: var(--subtle-text);
+    border-color: var(--input-border);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+body.dark-mode .journal-content.read-only {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
 .editor-message {
     padding: 10px 15px;
     text-align: center;
     font-size: 0.9rem;
     transition: all 0.3s;
+    margin: 0;
+    width: 100%;
 }
 .editor-message.success {
     color: #155724;
@@ -1016,8 +1043,9 @@ body.dark-mode #journal-content {
     background-color: #f8d7da;
 }
 .editor-message.info {
-    color: #0c5460;
-    background-color: #d1ecf1;
+    color: #0077cc;
+    background-color: rgba(0, 149, 255, 0.1);
+    border-left: 4px solid #0077cc;
 }
 body.dark-mode .editor-message.success {
     color: #c3e6cb;
